@@ -1,192 +1,132 @@
 
-# Windows에서 ESC 키를 누르면 자동으로 영어 입력 상태로 전환하는 방법
+# vim-esc
 
-## 문제 상황: 개발자의 일상적인 고민
+Windows에서 ESC 키를 누르면 자동으로 영어 입력 상태로 전환하는 AutoHotkey v2 스크립트
 
-PyCharm에서 IdeaVim을 사용하며 개발하다 보면 정말 자주 마주치는 상황이 있습니다. 한글로 주석을 쓰다가 ESC 키를 눌러 Normal 모드로 나온 후, 다시 명령어를 입력하려고 할 때 입력기가 여전히 한글 상태라 명령어가 제대로 작동하지 않는 것이죠.
+## 📋 개요
 
-### 왜 이런 문제가 발생할까요?
+PyCharm에서 IdeaVim을 사용하거나 Vim 계열 에디터를 사용할 때 자주 발생하는 문제를 해결합니다:
+- 한글 주석 작성 후 ESC를 눌러 Normal 모드로 나와도 입력기가 여전히 한글 상태
+- Normal 모드에서 명령어 입력 시 한글 상태로 인해 명령어가 제대로 동작하지 않음
+- 매번 ESC → 한/영 키를 수동으로 눌러야 하는 번거로움
 
-- **IdeaVim의 특성**: IdeaVim은 영문 키 입력만을 Normal 모드에서 명령어로 해석합니다
-- **한글 상태의 문제**: 한글 입력 상태에서는 Normal 모드 명령어가 제대로 동작하지 않습니다
-- **번거로운 작업**: ESC → 한/영 키 → 명령어 입력이라는 반복적인 패턴
+## ✨ 주요 기능
 
-"ESC 한 번 누르고 한/영 한 번 누르면 되지 않나?"라고 생각할 수 있지만, 이는 생각보다 엄청나게 짜증나고 거슬리는 작업입니다.
+- **ESC 키 자동 영문 전환**: ESC를 누르면 무조건 영문 모드로 전환
+- **스마트 처리**: 
+  - 한글 모드 → ESC 시 강제로 영문 모드 전환
+  - 영문 모드 → ESC 시 기존 ESC 기능 유지
+- **AutoHotkey v2 기반**: 최신 v2 문법 사용으로 64비트 컴파일 지원
 
-## 해결책: AutoHotkey로 자동화하기
+## 🚀 설치 및 사용법
 
-### 핵심 아이디어
-> **ESC 키가 눌리면 무조건 영문으로 전환시킨다!**
+### 1. AutoHotkey v2 설치
+[AutoHotkey v2 공식 웹사이트](https://www.autohotkey.com/)에서 v2 버전을 다운로드하여 설치하세요.
 
-이 문제를 해결하기 위해 Windows의 강력한 자동화 도구인 AutoHotkey를 사용하겠습니다.
+### 2. 스크립트 실행
+1. `vim-esc.ahk` 파일을 다운로드
+2. 파일을 더블클릭하여 실행
+3. 작업 표시줄에 AutoHotkey 아이콘이 나타나면 실행 완료
 
-## 1단계: AutoHotkey 설치
+### 3. 시작 프로그램 등록 (선택사항)
+Windows 부팅 시 자동 실행을 원한다면:
+1. `Windows + R` → `shell:startup` 입력
+2. `vim-esc.ahk` 파일의 바로가기를 Startup 폴더에 복사
 
-AutoHotkey 스크립트를 실행하려면 먼저 AutoHotkey를 설치해야 합니다.
-
-**설치 링크**: [https://www.autohotkey.com](https://www.autohotkey.com)
-
-AutoHotkey는 Windows에서 키 입출력 관련 기능에 특화된 스크립트 언어로, 다양한 자동화 작업을 수행할 수 있습니다.
-
-## 2단계: IME 상태 확인 코드
-
-현재 입력기가 한글인지 영문인지 확인하는 기능이 필요합니다. 다음 코드를 사용하여 IME 상태를 확인할 수 있습니다:
-
-```autohotkey
-/*
-  IME check 
-*/
-IME_CHECK(WinTitle) {
-  WinGet,hWnd,ID,%WinTitle%
-  Return Send_ImeControl(ImmGetDefaultIMEWnd(hWnd),0x005,"")
-}
-
-Send_ImeControl(DefaultIMEWnd, wParam, lParam) {
-  DetectSave := A_DetectHiddenWindows
-  DetectHiddenWindows,ON
-   SendMessage 0x283, wParam,lParam,,ahk_id %DefaultIMEWnd%
-  if (DetectSave <> A_DetectHiddenWindows)
-      DetectHiddenWindows,%DetectSave%
-  return ErrorLevel
-}
-
-ImmGetDefaultIMEWnd(hWnd) {
-  return DllCall("imm32\ImmGetDefaultIMEWnd", Uint,hWnd, Uint)
-}
-```
-
-## 3단계: ESC 키 자동 전환 스크립트
-
-이제 ESC 키를 누르면 항상 영문 입력으로 전환되도록 하는 완전한 스크립트를 작성해보겠습니다:
+## 💻 코드 구조
 
 ```autohotkey
 $Esc::
+{
     ret := IME_CHECK("A")
-    if %ret% <> 0           ; 1 means IME is in Hangul(Korean) mode now.
-        {
-            Send, {Esc}
-            Send, {vk15}    ; 한글인 경우 Esc키를 입력하고 한영키를 입력해 준다.
-        }
-    else if %ret% = 0       ; 0 means IME is in English mode now.
-        {
-            Send, {Esc}     ; 영문인 경우 Esc키만 입력한다.
-        }
-    return
-
-/*
-  IME check 
-*/
-IME_CHECK(WinTitle) {
-  WinGet,hWnd,ID,%WinTitle%
-  Return Send_ImeControl(ImmGetDefaultIMEWnd(hWnd),0x005,"")
-}
-
-Send_ImeControl(DefaultIMEWnd, wParam, lParam) {
-  DetectSave := A_DetectHiddenWindows
-  DetectHiddenWindows,ON
-   SendMessage 0x283, wParam,lParam,,ahk_id %DefaultIMEWnd%
-  if (DetectSave <> A_DetectHiddenWindows)
-      DetectHiddenWindows,%DetectSave%
-  return ErrorLevel
-}
-
-ImmGetDefaultIMEWnd(hWnd) {
-  return DllCall("imm32\ImmGetDefaultIMEWnd", Uint,hWnd, Uint)
+    if ret != 0           ; 한글 모드
+    {
+        IME_SET(0)        ; 강제로 영문 모드로 설정
+    }
+    else if ret = 0       ; 영문 모드
+    {
+        Send("{Esc}")     ; 기존 ESC 기능 실행
+    }
 }
 ```
 
-### 코드 동작 원리
+### 핵심 함수들
 
-1. **IME 상태 확인**: 현재 입력기가 한글(1) 또는 영문(0) 상태인지 확인
-2. **조건부 처리**: 
-   - 한글 상태라면: ESC + 한/영 키 전송
-   - 영문 상태라면: ESC 키만 전송
-3. **결과**: 어떤 상태든 ESC 후에는 항상 영문 입력 상태가 됨
+- `IME_CHECK()`: 현재 IME 상태 확인 (0: 영문, 1: 한글)
+- `IME_SET()`: IME 상태 강제 설정 (0: 영문, 1: 한글)
+- `Send_ImeControl()`: Windows IME API를 통한 IME 제어
+- `ImmGetDefaultIMEWnd()`: IME 창 핸들 획득
 
-## 4단계: 스크립트 실행 및 테스트
+## 🔧 컴파일 (선택사항)
 
-1. 위 코드를 `esc_force_english.ahk` 파일로 저장합니다
-2. 파일을 더블클릭하여 실행합니다
-3. Windows 우측 하단에 AutoHotkey 아이콘이 나타나면 실행 완료입니다
+스크립트를 실행 파일(.exe)로 컴파일하면 AutoHotkey가 설치되지 않은 컴퓨터에서도 사용할 수 있습니다.
 
+### 방법 1: GUI를 통한 컴파일
 
-### 테스트 결과
+1. **스크립트 파일 우클릭**
+   
+   `vim-esc.ahk` 파일을 우클릭하면 "Compile Script" 메뉴가 나타납니다.
 
-스크립트 실행 후 테스트해보면:
-- 한글 입력 상태에서 ESC를 누르면 → 자동으로 영문 상태로 전환
-- 영문 입력 상태에서 ESC를 누르면 → 영문 상태 유지
+2. **컴파일 옵션 설정**
+   
+   - **Target**: `x64` 선택 (64비트 실행 파일)
+   - **Output**: 출력 파일명 설정 (`vim-esc.exe`)
+   - **Icon**: 원하는 아이콘 파일 선택 (선택사항)
+  ![compile](images/image.png)
 
-정말 "개비스콘이 따로 없는" 효과입니다!
+3. **컴파일 실행**
+   
+   "Compile" 버튼을 클릭하면 같은 폴더에 `.exe` 파일이 생성됩니다.
 
-## 5단계: 시스템 시작 시 자동 실행 설정
+### 방법 2: 명령줄을 통한 컴파일
 
-매번 부팅할 때마다 스크립트를 수동으로 실행하는 것은 번거롭습니다. Windows 시작 시 자동으로 실행되도록 설정해보겠습니다.
-
-### Startup 폴더 활용
-
-Windows에는 **Startup** 이라는 특수 폴더가 있습니다. 이 폴더에 저장된 바로가기 파일은 Windows 부팅 시 자동으로 실행됩니다.
-
-**Startup 폴더 경로:**
-```
-C:\Users\[사용자명]\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup
+```cmd
+Ahk2Exe.exe /in vim-esc.ahk /out vim-esc.exe /x64
 ```
 
-**빠른 접근 방법:**
-1. `Windows + R` 키를 누릅니다
-2. `shell:startup`을 입력합니다
-3. Enter를 누르면 Startup 폴더가 열립니다
+### 컴파일된 실행 파일 사용법
 
+- ✅ AutoHotkey 설치 없이도 실행 가능
+- ✅ 다른 컴퓨터에 배포 가능
+- ✅ 시작 프로그램에 등록하기 편리
+- ✅ 더 빠른 실행 속도
 
-### 바로가기 파일 생성
+## 📝 변경 이력
 
-1. `esc_force_english.ahk` 파일을 우클릭합니다
-2. "바로가기 만들기"를 선택합니다
-3. 생성된 바로가기를 Startup 폴더에 복사합니다
+### v2.0 (최신)
+- AutoHotkey v2 문법으로 전면 개편
+- IME 토글 방식에서 강제 설정 방식으로 변경
+- 64비트 컴파일 지원
+- 더 안정적인 IME 상태 제어
 
+### v1.0
+- AutoHotkey v1 기반 초기 버전
+- 한/영 키 토글 방식 사용
 
-## 완성! 이제 컴퓨터를 켜면 ESC 키가 항상 영문 전환!
+## 🎯 동작 원리
 
-설정을 완료하면:
-- ✅ Windows 부팅 시 자동으로 스크립트 실행
-- ✅ ESC 키를 누르면 항상 영문 입력 상태로 전환
-- ✅ 개발 시 한/영 키를 수동으로 누를 필요가 없음
+1. **ESC 키 후킹**: `$Esc::`로 ESC 키 입력을 가로챔
+2. **IME 상태 확인**: Windows IME API를 통해 현재 입력 상태 확인
+3. **조건부 처리**:
+   - 한글 상태: `IME_SET(0)`으로 강제 영문 전환
+   - 영문 상태: 원래 ESC 기능 실행
+4. **결과**: 항상 ESC 후에는 영문 입력 상태 보장
 
-## 추가 팁 및 주의사항
+## 🔍 문제 해결
 
-### 다른 환경에서의 응용
+### 스크립트가 실행되지 않는 경우
+- AutoHotkey v2가 올바르게 설치되었는지 확인
+- 관리자 권한으로 실행 시도
+- Windows Defender나 백신 프로그램에서 차단되지 않았는지 확인
 
-이 방법은 Windows 환경에서만 사용 가능합니다. 다른 운영체제의 경우:
+### 일부 프로그램에서 동작하지 않는 경우
+- 해당 프로그램이 관리자 권한으로 실행 중인지 확인
+- AutoHotkey 스크립트도 관리자 권한으로 실행 필요
 
-- **macOS**: Hammerspoon이나 Karabiner-Elements 사용
-- **Linux**: xkb-switch나 fcitx-remote 명령어 활용
+## 📄 라이선스
 
-### 스크립트 수정 및 확장
+MIT License
 
-필요에 따라 스크립트를 수정할 수 있습니다:
+## 🤝 기여
 
-```autohotkey
-; 다른 키에도 동일한 기능 적용
-$F1::
-    ret := IME_CHECK("A")
-    if %ret% <> 0
-        Send, {vk15}
-    Send, {F1}
-    return
-```
-
-### 성능 고려사항
-
-- AutoHotkey는 가벼운 프로그램이므로 시스템 성능에 큰 영향을 주지 않습니다
-- 메모리 사용량도 매우 적습니다 (보통 1-2MB 수준)
-
-## 마무리
-
-이제 더 이상 ESC 키를 누른 후 한/영 키를 따로 누를 필요가 없습니다! 
-
-IdeaVim이나 다른 Vim 에뮬레이터를 사용하는 개발자라면 이 설정으로 인해 개발 효율성이 크게 향상될 것입니다. 작은 자동화 하나가 개발 경험을 얼마나 개선시킬 수 있는지 보여주는 좋은 예시라고 생각합니다.
-
-**개발자의 시간은 소중하니까요!** 이런 반복적인 작업은 자동화로 해결하고, 더 중요한 코딩에 집중하시길 바랍니다.
-
----
-
-> **참고**: 이 글은 실제 개발 환경에서 겪은 불편함을 해결하기 위한 실용적인 방법을 소개합니다. AutoHotkey의 더 많은 활용법이 궁금하시다면 공식 문서를 참고해보세요!
+버그 리포트나 기능 제안은 Issues를 통해 언제든 환영합니다!

@@ -1,0 +1,10 @@
+*.exe
+*.dll
+*.obj
+*.pdb
+*.idb
+*.lib
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
